@@ -1,4 +1,4 @@
-version: '2.2'
+version: '3.7'
 
 services:
 
@@ -11,14 +11,27 @@ services:
   #     - "24224:24224"
   #     - "24224:24224/udp"
 
-  # Elasticsearch requires your vm.max_map_count set to 262144
-  # Default will be 65530
-  # sysctl -w vm.max_map_count=262144
-  # Add this to /etc/sysctl.conf for making it permanent
+    
+  fluentd:
+    image: fluent/fluentd:v1.15
+    container_name: fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+    networks:
+      - elk
+    environment:
+      - FLUENT_ELASTICSEARCH_HOST=elasticsearch
+      - FLUENT_ELASTICSEARCH_PORT=9200
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.5.4
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
     container_name: elasticsearch
     environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
@@ -26,20 +39,216 @@ services:
         soft: -1
         hard: -1
     volumes:
-      - esdata1:/usr/share/elasticsearch/data
+      - esdata:/usr/share/elasticsearch/data
     ports:
-      - 9200:9200
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elk
+
+  # logstash:
+  #   image: docker.elastic.co/logstash/logstash:7.14.0
+  #   container_name: logstash
+  #   volumes:
+  #     - ./logstash/pipeline:/usr/share/logstash/pipeline
+  #   ports:
+  #     - "6000:6000"
+  #     - "9600:9600"
+  #   networks:
+  #     - elk
+  #   depends_on:
+  #     - elasticsearch
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:6.5.4
+    image: docker.elastic.co/kibana/kibana:7.14.0
     container_name: kibana
     environment:
-      ELASTICSEARCH_URL: "http://elasticsearch:9200"
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
     ports:
-      - 5601:5601
+      - "5601:5601"
+    networks:
+      - elk
     depends_on:
       - elasticsearch
 
+networks:
+  elk:
+    driver: bridge
+
 volumes:
-  esdata1:
+  esdata:
     driver: local
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# version: '3'
+# services:
+
+#   # fluentd:
+#   #   build: ./fluentd
+#   #   container_name: fluentd
+#   #   volumes:
+#   #     - ./fluentd/conf:/fluentd/etc
+#   #   ports:
+#   #     - "24224:24224"
+#   #     - "24224:24224/udp"
+
+#   # Elasticsearch requires your vm.max_map_count set to 262144
+#   # Default will be 65530
+#   # sysctl -w vm.max_map_count=262144
+#   # Add this to /etc/sysctl.conf for making it permanent
+#   elasticsearch:
+#     image: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+#     container_name: elasticsearch
+#     environment:
+#       - bootstrap.memory_lock=true
+#       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+#     ulimits:
+#       memlock:
+#         soft: -1
+#         hard: -1
+#     volumes:
+#       - esdata1:/usr/share/elasticsearch/data
+#     ports:
+#       - 9200:9200
+
+#   kibana:
+#     image: docker.elastic.co/kibana/kibana:6.5.4
+#     container_name: kibana
+#     environment:
+#       ELASTICSEARCH_URL: "http://elasticsearch:9200"
+#     ports:
+#       - 5601:5601
+#     depends_on:
+#       - elasticsearch
+
+# volumes:
+#   esdata1:
+#     driver: local
+
+
+
+################################
+# version: '3'
+# # Define the Docker volume named esdata for the Elasticsearch container.
+# volumes:
+#   esdata:
+
+# # # Deploying three container services (fluentd, elasticsearch, and kibana)
+# # services:
+# # Deploy using the custom image automatically be created during the build process.
+# #   fluentd: 
+# #     build: ./fluentd
+# #     links: # Sends incoming logs to the elasticsearch container.
+# #       - elasticsearch
+# #     depends_on:
+# #       - elasticsearch
+# #     ports: # Exposes the port 24224 on both TCP and UDP protocol for log aggregation
+# #       - 24224:24224
+# #       - 24224:24224/udp
+
+# # Created using the Docker image elasticsearch:7.17.0
+#   elasticsearch:
+#     image: elasticsearch:7.17.0
+#     expose: # Exposes the default port 9200
+#       - 9200
+#     environment:
+#       - discovery.type=single-node # Runs as a single-node
+#     volumes: # Stores elasticsearch data locally on the esdata Docker volume
+#       - esdata:/usr/share/elasticsearch/data
+
+# # Created using the Docker image kibana:7.17.0
+#   kibana:
+#     image: kibana:7.17.0
+#     links: # Links kibana service to the elasticsearch container
+#       - elasticsearch
+#     depends_on:
+#       - elasticsearch
+#     ports: # Runs kibana service on default port 5601
+#       - 5601:5601
+#     environment: # Defined host configuration
+#       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # version: "3"
+# # services:
+# #   elasticsearch:
+# #     environment:
+# #       - reindex.remote.whitelist=docker.for.mac.host.internal:9200
+# #       - discovery.type=single-node
+# #     image: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+# #     container_name: elasticsearch_7_4_2
+# #     ports:
+# #       - 9274:9200
+# #   kibana:
+# #     image: test-kdocker
+# #     container_name: kibana_7_4_2
+# #     ports:
+# #       - 5674:5601    
